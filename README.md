@@ -2,7 +2,7 @@
 
 A projetc using readline library in Javascript
 
-### Rodando a aplicação
+### Run the application
 
 Prepare environment:
 
