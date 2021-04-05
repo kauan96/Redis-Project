@@ -38,90 +38,106 @@ showError = (message) => {
     console.log(message.toString())
 }
 
+begin = () => {
+    let duplicateArray = JSON.parse(JSON.stringify(memory.filter(item => item.level == level)));
+    level++;
+    duplicateArray.forEach(item => item.level = level)
+    memory = memory.concat(duplicateArray);
+}
+
+commit = () => {
+    let arrayAux = [];
+    memory.forEach(slot => {
+        if (existingItem(arrayAux, slot.name)) {
+            slot.level = 0;
+            arrayAux.push(slot)
+        } else {
+            let indexAux = arrayAux.findIndex(item => item.name == slot.name);
+            if (arrayAux[indexAux].level <= slot.level) {
+                arrayAux.pop(indexAux);
+                slot.level = 0;
+                arrayAux.push(slot);
+            }
+        }
+    });
+    level = 0;
+    memory = arrayAux;
+}
+
+setData = (currentVar, currentValue) => {
+    let existingSlot = memory.findIndex(item => item.name == currentVar && item.level == level);
+    if (existingSlot > -1) memory[existingSlot].value = currentValue;
+    else {
+        memory.push({
+            name: currentVar,
+            value: currentValue,
+            level
+        });
+    }
+}
+
 start();
+
+callTransactions = (text) => {
+    let command = text.substr(0, text.length).toUpperCase();
+    switch (command) {
+        case 'BEGIN':
+            begin()
+            break;
+        case 'COMMIT':
+            if (memory.length) commit()
+            else showError('NO TRANSACTION');
+            break;
+        case 'ROLLBACK':
+            if (memory.length && memory.some(item => item.level != 0)) {
+                memory = memory.filter(item => item.level != level);
+                level--;
+            } else showError('NO TRANSACTION');
+            break;
+        case 'END':
+            process.exit();
+            break;
+        default:
+            showError('Write a valid command!');
+    }
+}
+
+callDataCommands = (text) => {
+    let command = getCommand(text);
+    let currentVar = getCurrentVar(text, command);
+    let currentValue = getCurrentValue(text);
+
+    switch (command) {
+        case 'SET':
+            setData(currentVar, currentValue)
+            break;
+        case 'GET':
+            index = getIndex(memory, currentVar);
+            if (index > -1) console.log(memory.reverse()[index].value);
+            else showError('NULL');
+            break;
+        case 'NUMEQUALTO':
+            if (memory.length) 
+                console.log(memory.filter(slot => slot.value == currentVar 
+                                        && slot.level == level).length);
+            else showError('0');
+            break;
+        case 'UNSET':
+            index = getIndex(memory, currentVar);
+            if (index > -1) memory.pop(index);
+            else showError('NULL');
+            break;
+        default:
+    }
+}
 
 async function start() {
     const text = await ask('');
     
     if(text.match(' ') && text.match(' ').length > 0) {
-        let command = getCommand(text);
-        let currentVar = getCurrentVar(text, command);
-        let currentValue = getCurrentValue(text);
-
-        switch (command) {
-            case 'SET':
-                let existingSlot = memory.findIndex(item => item.name == currentVar 
-                                                            && item.level == level);
-                if (existingSlot > -1) memory[existingSlot].value = currentValue;
-                else {
-                    memory.push({
-                        name: currentVar,
-                        value: currentValue,
-                        level
-                    });
-                }
-                break;
-            case 'GET':
-                index = getIndex(memory, currentVar);
-                if (index > -1) console.log(memory.reverse()[index].value);
-                else showError('NULL');
-                break;
-            case 'NUMEQUALTO':
-                if (memory.length) 
-                    console.log(memory.filter(slot => slot.value == currentVar 
-                                            && slot.level == level).length);
-                else showError('0');
-                break;
-            case 'UNSET':
-                index = getIndex(memory, currentVar);
-                if (index > -1) memory.pop(index);
-                else showError('NULL');
-                break;
-            default:
-        }
+        callDataCommands(text)
     } else {
-        let command = text.substr(0, text.length).toUpperCase();
-        switch (command) {
-            case 'BEGIN':
-                let duplicateArray = JSON.parse(JSON.stringify(
-                                        memory.filter(item => item.level == level)));
-                level++;
-                duplicateArray.forEach(item => item.level = level)
-                memory = memory.concat(duplicateArray);
-                break;
-            case 'COMMIT':
-                if (memory.length){
-                    let arrayAux = [];
-                    memory.forEach(slot => {
-                        if (existingItem(arrayAux, slot.name)) {
-                            slot.level = 0;
-                            arrayAux.push(slot)
-                        } else {
-                            let indexAux = arrayAux.findIndex(item => item.name == slot.name);
-                            if (arrayAux[indexAux].level <= slot.level) {
-                                arrayAux.pop(indexAux);
-                                slot.level = 0;
-                                arrayAux.push(slot);
-                            }
-                        }
-                    });
-                    level = 0;
-                    memory = arrayAux;
-                } else showError('NO TRANSACTION');
-                break;
-            case 'ROLLBACK':
-                if (memory.length && memory.some(item => item.level != 0)) {
-                    memory = memory.filter(item => item.level != level);
-                    level--;
-                }
-                else showError('NO TRANSACTION');
-                break;
-            case 'END':
-                process.exit();
-                break;
-            default:
-                showError('Write a valid command!');
-        }
+        callTransactions(text)
     }
     start();
 }
